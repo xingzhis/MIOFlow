@@ -23,7 +23,7 @@ def config_exp_logger(path):
 
     logging.basicConfig(
         filename=exp_log_filename(path), 
-        encoding='utf-8',
+        # encoding='utf-8',
         level=logging.DEBUG,
         format='%(asctime)s\t%(levelname)s:%(message)s',
         datefmt='%d/%m/%Y %I:%M:%S %p',

@@ -16,7 +16,7 @@ from MIOFlow.losses import MMD_loss, OT_loss, Density_loss, Local_density_loss
 from MIOFlow.utils import group_extract, sample, to_np, generate_steps
 from MIOFlow.models import ToyModel, make_model
 from MIOFlow.plots import plot_comparision, plot_losses
-from MIOFlow.train import train, train_emd
+from MIOFlow.train import train, train_ae
 from MIOFlow.constants import ROOT_DIR, DATA_DIR, NTBK_DIR, IMGS_DIR, RES_DIR
 from MIOFlow.datasets import (
     make_diamonds, make_dyngen_data, make_swiss_roll, make_tree, 
@@ -24,7 +24,7 @@ from MIOFlow.datasets import (
 )
 from MIOFlow.ode import NeuralODE, ODEF
 from MIOFlow.exp import setup_exp
-from MIOFlow.geo import GeoEmbedding, DiffusionDistance
+from MIOFlow.geo import DiffusionDistance
 from MIOFlow.eval import generate_plot_data
 
 
@@ -121,7 +121,8 @@ parser.add_argument(
     help='Number of epochs to use `global_loss` while training. Defaults to `15`.' 
 )
 parser.add_argument(
-    '--local-post-epochs', '-lpe', type=int, default=5,
+    # '--local-post-epochs', '-lpe', type=int, default=5,
+    '--localpostepochs', '-lpe', type=int, default=5, # FIXME the old name cannot be parsed somehow?
     help='Number of epochs to use `local_loss` after training. These epochs occur last. Defaulst to `5`.'
 )
 
@@ -140,7 +141,7 @@ parser.add_argument(
 
 parser.add_argument(
     '--cuda', '--use-gpu', '-g', type=bool, 
-    action=argparse.BooleanOptionalAction, default=True,     
+    default=True,     
     help='Whether or not to use CUDA. Defaults to `True`.'
 )
 
@@ -152,7 +153,7 @@ parser.add_argument(
 
 parser.add_argument(
     '--sample-with-replacement', '-swr', type=bool, 
-    action=argparse.BooleanOptionalAction, default=False,     
+    default=False,     
     help='Whether or not to sample with replacement. Defaults to `True`.'
 )
 
@@ -160,7 +161,7 @@ parser.add_argument(
 
 parser.add_argument(
     '--hold-one-out', '-hoo', type=bool, 
-    action=argparse.BooleanOptionalAction, default=True,
+    default=True,
     help=' Defaults to `True`. Whether or not to randomly hold one time pair e.g. t_1 to t_2 out when computing the global loss.'
 )
 
@@ -171,7 +172,7 @@ parser.add_argument(
 
 parser.add_argument(
     '--apply-losses-in-time', '-it',type=bool, 
-    action=argparse.BooleanOptionalAction, default=True,
+    default=True,
     help='Defaults to `True`. Applies the losses and does back propegation as soon as a loss is calculated. See notes for more detail.'
 )
 
@@ -187,13 +188,13 @@ parser.add_argument(
 
 parser.add_argument(
     '--use-density-loss', '-udl', type=bool, 
-    action=argparse.BooleanOptionalAction, default=True,
+    default=True,
     help='Defaults to `True`. Whether or not to add density regularization.'
 )
 
 parser.add_argument(
     '--use-local-density', '-uld', type=bool, 
-    action=argparse.BooleanOptionalAction, default=False,
+    default=False,
     help='Defaults to `False`. Whether or not to use local density.'
 )
 
@@ -225,8 +226,7 @@ parser.add_argument(
 # NOTE: Geo training args
 parser.add_argument(
     '--use-geo', '-ug', type=bool, default=False,
-    action=argparse.BooleanOptionalAction,
-    help='Whether or not to use a geodesic embedding'
+        help='Whether or not to use a geodesic embedding'
 )
 # TODO: add Geo training stuff
 parser.add_argument(
@@ -293,7 +293,8 @@ if __name__ == '__main__':
     geo_layers = opts['geo_layers']
     geo_features = opts['geo_features']
 
-    geoemb = make_model(model_features, geo_layers, geo_features, 'ReLU', which='geo')
+    # geoemb = make_model(model_features, geo_layers, geo_features, 'ReLU', which='geo')
+    geoemb = make_model(model_features, geo_layers, geo_features, 'ReLU', which='ode') # FIXME CANNOT FIND `ToyGeo`! I had to change it into ODE.
     model = make_model(model_features, model_layers, 'ReLU')
     
     
@@ -314,7 +315,7 @@ if __name__ == '__main__':
 
     n_local_epochs = opts['local_epochs']
     n_epochs = opts['epochs']
-    n_post_local_epochs = opts['local-post-epochs']
+    n_post_local_epochs = opts['localpostepochs']
     n_batches = opts['batches']
 
     hold_one_out = opts['hold_one_out']
@@ -342,7 +343,7 @@ if __name__ == '__main__':
     # TODO: update argparse to include diffusion distance options
     if use_geo:
         logger.info(f'Training geodesic model')
-        train_emd(
+        train_ae(
             geoemb, df, groups, geo_optimizer,
             n_epochs=60, criterion=nn.MSELoss(),             
             geo_dist=DiffusionDistance(),
@@ -357,10 +358,14 @@ if __name__ == '__main__':
                 criterion = criterion, use_cuda = use_cuda,
                 local_loss=True, global_loss=False, apply_losses_in_time=apply_losses_in_time,
                 hold_one_out=hold_one_out, hold_out=hold_out, 
-                lambda_local = lambda_local, lambda_global = lambda_global, hinge_value=hinge_value,
-                use_density_loss = use_density_loss, use_local_density = use_local_density,       
-                top_k = top_k, lambda_density = lambda_density, lambda_density_local = lambda_density_local, 
-                geo_emb = geoemb, use_geo = use_geo, sample_size = sample_size,
+                # lambda_local = lambda_local, lambda_global = lambda_global,  # FIXME parameter not defined!
+                hinge_value=hinge_value,
+                use_density_loss = use_density_loss, 
+                # use_local_density = use_local_density,       # FIXME parameter not defined!
+                top_k = top_k, lambda_density = lambda_density, 
+                # lambda_density_local = lambda_density_local, # FIXME parameter not defined!
+                # geo_emb = geoemb, use_geo = use_geo, # FIXME parameters not defined!
+                sample_size = sample_size,
                 sample_with_replacement = sample_with_replacement, logger=logger  
             )
             for k, v in l_loss.items():  
@@ -375,10 +380,14 @@ if __name__ == '__main__':
             criterion = criterion, use_cuda = use_cuda,
             local_loss=False, global_loss=True, apply_losses_in_time=apply_losses_in_time,
             hold_one_out=hold_one_out, hold_out=hold_out, 
-            lambda_local = lambda_local, lambda_global = lambda_global, hinge_value=hinge_value,
-            use_density_loss = use_density_loss, use_local_density = use_local_density,       
-            top_k = top_k, lambda_density = lambda_density, lambda_density_local = lambda_density_local, 
-            geo_emb = geoemb, use_geo = use_geo, sample_size = sample_size,
+            # lambda_local = lambda_local, lambda_global = lambda_global, # FIXME parameters not defined!
+            hinge_value=hinge_value,
+            use_density_loss = use_density_loss,
+            # use_local_density = use_local_density,       # FIXME parameters not defined!
+            top_k = top_k, lambda_density = lambda_density, 
+            # lambda_density_local = lambda_density_local, use_local_density
+            # geo_emb = geoemb, use_geo = use_geo, # FIXME parameters not defined!
+            sample_size = sample_size,
             sample_with_replacement = sample_with_replacement, logger=logger  
         )
 
@@ -395,10 +404,14 @@ if __name__ == '__main__':
                 criterion = criterion, use_cuda = use_cuda,
                 local_loss=True, global_loss=False, apply_losses_in_time=apply_losses_in_time,
                 hold_one_out=hold_one_out, hold_out=hold_out, 
-                lambda_local = lambda_local, lambda_global = lambda_global, hinge_value=hinge_value,
-                use_density_loss = use_density_loss, use_local_density = use_local_density,       
-                top_k = top_k, lambda_density = lambda_density, lambda_density_local = lambda_density_local, 
-                geo_emb = geoemb, use_geo = use_geo, sample_size = sample_size,
+                # lambda_local = lambda_local, lambda_global = lambda_global, 
+                hinge_value=hinge_value,
+                use_density_loss = use_density_loss, 
+                # use_local_density = use_local_density,       
+                top_k = top_k, lambda_density = lambda_density, 
+                # lambda_density_local = lambda_density_local, 
+                # geo_emb = geoemb, use_geo = use_geo, 
+                sample_size = sample_size,
                 sample_with_replacement = sample_with_replacement, logger=logger  
             )
             for k, v in l_loss.items():  

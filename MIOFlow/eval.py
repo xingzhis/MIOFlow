@@ -46,7 +46,7 @@ def generate_points(
         data_t0 = autoencoder.encoder(data_t0)
         
     time =  torch.Tensor(sample_time).cuda() if use_cuda else torch.Tensor(sample_time)
-    generated = model(data_t0, time, return_whole_sequence=True)
+    generated = model(torch.tensor(data_t0, dtype=torch.float32), time, return_whole_sequence=True)
     if autoencoder is not None and recon:
         generated = autoencoder.decoder(generated)
     return to_np(generated)

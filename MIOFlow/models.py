@@ -93,7 +93,7 @@ def make_model(
             
         )
     else:
-        model = ToyGeo(feature_dims, layers, output_dims, activation)
+        model = ToyGeo(feature_dims, layers, output_dims, activation)  # FIXME cannot find `ToyGeo`
     if use_cuda:
         model.cuda()
     return model 
